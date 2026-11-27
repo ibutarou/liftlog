@@ -1,0 +1,10 @@
+{
+  "name": "liftlog-training-app",
+  "version": "1.0.0",
+  "description": "シンプルな筋トレ管理Webアプリ（日々の記録・成長可視化・部位バランス分析）",
+  "private": true,
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.js"
+  }
+}

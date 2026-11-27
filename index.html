@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>LiftLog — シンプル筋トレ管理</title>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('liftlog_theme_v1');
+        var theme = saved === 'dark' || saved === 'light'
+          ? saved
+          : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-logo" aria-hidden="true">LL</span>
+        <div>
+          <span class="brand-name">LiftLog</span>
+          <span class="brand-sub">筋トレ記録・成長・部位バランス</span>
+        </div>
+      </div>
+
+      <nav class="desktop-nav" aria-label="メインナビゲーション">
+        <button type="button" class="nav-tab is-active" data-tab="record">記録</button>
+        <button type="button" class="nav-tab" data-tab="growth">成長グラフ</button>
+        <button type="button" class="nav-tab" data-tab="balance">部位バランス</button>
+        <button type="button" class="nav-tab" data-tab="history">履歴</button>
+      </nav>
+
+      <div class="header-actions">
+        <span id="sampleDataBadge" class="sample-badge" hidden>サンプル表示中</span>
+        <button type="button" id="quickSampleBtn" class="btn-ghost-sm" title="サンプルデータを読み込む">サンプル読込</button>
+        <button type="button" id="themeToggleBtn" class="theme-toggle-btn" aria-pressed="false" aria-label="ダークテーマに切り替え" title="テーマを切り替え">
+          <span class="theme-toggle-icon" aria-hidden="true">🌙</span>
+          <span class="theme-toggle-label">ダーク</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <div id="swipeStage" class="swipe-stage">
+    <!-- ==================== 記録ビュー ==================== -->
+    <section id="view-record" class="view-section is-active" aria-labelledby="record-heading">
+      <div class="record-layout">
+        <div class="card form-card">
+          <div class="card-header-row">
+            <div>
+              <h1 id="record-heading" class="card-title">ワークアウトを記録</h1>
+              <p class="card-subtitle">部位と種目を選んで素早く入力。前回記録と比較しながら記録できます。</p>
+            </div>
+            <button type="button" id="cancelEditBtn" class="btn-secondary-sm" hidden>編集をキャンセル</button>
+          </div>
+
+          <form id="workoutForm" novalidate>
+            <div class="form-row-top">
+              <div class="field-group">
+                <label for="inputDate" class="field-label">日付</label>
+                <input id="inputDate" name="date" type="date" class="field-input" required />
+              </div>
+            </div>
+
+            <div class="field-group">
+              <span class="field-label">部位</span>
+              <div id="bodyPartSelector" class="body-part-pills" role="radiogroup" aria-label="部位を選択"></div>
+            </div>
+
+            <div class="field-group">
+              <label for="inputExercise" class="field-label">種目名</label>
+              <input
+                id="inputExercise"
+                name="exerciseName"
+                type="text"
+                class="field-input"
+                list="exerciseSuggestions"
+                placeholder="例：ベンチプレス、スクワット"
+                autocomplete="off"
+                required
+              />
+              <datalist id="exerciseSuggestions"></datalist>
+              <div id="presetExerciseChips" class="preset-chips" aria-label="定番種目ショートカット"></div>
+            </div>
+
+            <!-- モバイルでも入力直下に前回記録を表示 -->
+            <div id="previousRecordInline" class="prev-record-box" aria-live="polite"></div>
+
+            <div class="numeric-grid">
+              <div class="field-group">
+                <label for="inputWeight" class="field-label">重量 (kg)</label>
+                <div class="stepper-field">
+                  <button type="button" class="stepper-btn" data-target="inputWeight" data-delta="-2.5" aria-label="重量を2.5kg減らす">-2.5</button>
+                  <input
+                    id="inputWeight"
+                    name="weight"
+                    type="number"
+                    inputmode="decimal"
+                    step="0.5"
+                    min="0.5"
+                    placeholder="60"
+                    class="field-input stepper-input"
+                    required
+                  />
+                  <button type="button" class="stepper-btn" data-target="inputWeight" data-delta="2.5" aria-label="重量を2.5kg増やす">+2.5</button>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label for="inputReps" class="field-label">回数 (レップ)</label>
+                <div class="stepper-field">
+                  <button type="button" class="stepper-btn" data-target="inputReps" data-delta="-1" aria-label="回数を1回減らす">-1</button>
+                  <input
+                    id="inputReps"
+                    name="reps"
+                    type="number"
+                    inputmode="numeric"
+                    step="1"
+                    min="1"
+                    placeholder="10"
+                    class="field-input stepper-input"
+                    required
+                  />
+                  <button type="button" class="stepper-btn" data-target="inputReps" data-delta="1" aria-label="回数を1回増やす">+1</button>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label for="inputSets" class="field-label">セット数</label>
+                <div class="stepper-field">
+                  <button type="button" class="stepper-btn" data-target="inputSets" data-delta="-1" aria-label="セット数を1減らす">-1</button>
+                  <input
+                    id="inputSets"
+                    name="sets"
+                    type="number"
+                    inputmode="numeric"
+                    step="1"
+                    min="1"
+                    placeholder="3"
+                    class="field-input stepper-input"
+                    required
+                  />
+                  <button type="button" class="stepper-btn" data-target="inputSets" data-delta="1" aria-label="セット数を1増やす">+1</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label for="inputMemo" class="field-label">メモ <span class="optional-tag">任意</span></label>
+              <input
+                id="inputMemo"
+                name="memo"
+                type="text"
+                class="field-input"
+                maxlength="140"
+                placeholder="フォームの意識点や体調など"
+              />
+            </div>
+
+            <div id="liveCalcPreview" class="live-preview-bar" aria-live="polite"></div>
+
+            <p id="formError" class="form-error" hidden></p>
+
+            <button type="submit" id="submitWorkoutBtn" class="btn-primary-lg">
+              記録を保存する
+            </button>
+          </form>
+        </div>
+
+        <aside class="record-side">
+          <div class="card">
+            <div class="card-header-row">
+              <h2 class="card-title-sm">選択中の日付の記録</h2>
+              <span id="selectedDateBadge" class="muted-badge"></span>
+            </div>
+            <div id="dayWorkoutsList" class="day-workouts-list"></div>
+          </div>
+
+          <div class="card quick-insight-card">
+            <h2 class="card-title-sm">直近のサマリー（7日間）</h2>
+            <div id="quickSummaryGrid" class="quick-summary-grid"></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ==================== 成長グラフビュー ==================== -->
+    <section id="view-growth" class="view-section" aria-labelledby="growth-heading" hidden>
+      <div class="card">
+        <div class="section-toolbar">
+          <div>
+            <h1 id="growth-heading" class="card-title">種目別の成長グラフ</h1>
+            <p class="card-subtitle">推定1RMとセッション総ボリュームの推移、自己ベスト更新を確認できます。</p>
+          </div>
+          <div class="metric-toggle" role="group" aria-label="表示指標を切り替え">
+            <button type="button" class="segment-btn is-active" data-growth-metric="oneRM">推定1RM (kg)</button>
+            <button type="button" class="segment-btn" data-growth-metric="volume">総ボリューム (kg)</button>
+          </div>
+        </div>
+
+        <div class="exercise-picker-row">
+          <div class="field-group exercise-select-wrap">
+            <label for="growthExerciseSelect" class="field-label">種目を選択</label>
+            <select id="growthExerciseSelect" class="field-input"></select>
+          </div>
+          <div id="growthExerciseChips" class="preset-chips"></div>
+        </div>
+
+        <div id="growthKpiGrid" class="kpi-grid"></div>
+
+        <div class="chart-panel">
+          <div class="chart-legend-row">
+            <span class="legend-item"><span class="legend-dot is-indigo"></span>各セッション</span>
+            <span class="legend-item"><span class="legend-dot is-gold"></span>★ 自己ベスト更新 (PR)</span>
+          </div>
+          <div id="growthChartContainer" class="chart-container"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header-row">
+          <h2 class="card-title-sm">この種目の推移履歴</h2>
+          <span id="growthHistoryCount" class="muted-badge"></span>
+        </div>
+        <div id="growthHistoryTable" class="history-table-wrap"></div>
+      </div>
+    </section>
+
+    <!-- ==================== 部位バランスビュー ==================== -->
+    <section id="view-balance" class="view-section" aria-labelledby="balance-heading" hidden>
+      <div class="card">
+        <div class="section-toolbar">
+          <div>
+            <h1 id="balance-heading" class="card-title">部位バランス分析</h1>
+            <p class="card-subtitle">期間ごとのセット数・ボリューム割合から部位の偏りを把握します。</p>
+          </div>
+          <div id="periodFilterGroup" class="segmented-control" role="group" aria-label="集計期間を選択"></div>
+        </div>
+
+        <div id="balanceSummaryStrip" class="balance-summary-strip"></div>
+
+        <div class="advice-section">
+          <h2 class="card-title-sm">バランスアドバイス</h2>
+          <div id="balanceAdviceList" class="advice-grid"></div>
+        </div>
+      </div>
+
+      <div class="balance-grid">
+        <div class="card">
+          <div class="card-header-row wrap-gap">
+            <h2 class="card-title-sm">部位別チャート</h2>
+            <div class="chart-controls-pair">
+              <div class="segmented-control-sm" role="group" aria-label="グラフ形式">
+                <button type="button" class="segment-btn is-active" data-balance-chart="radar">レーダー</button>
+                <button type="button" class="segment-btn" data-balance-chart="bar">棒グラフ</button>
+              </div>
+              <div class="segmented-control-sm" role="group" aria-label="表示数値">
+                <button type="button" class="segment-btn is-active" data-balance-metric="sets">セット数</button>
+                <button type="button" class="segment-btn" data-balance-metric="volume">ボリューム割合</button>
+              </div>
+            </div>
+          </div>
+          <div id="balanceChartContainer" class="chart-container"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header-row">
+            <h2 class="card-title-sm">部位別内訳（6部位）</h2>
+          </div>
+          <div id="balanceBreakdownTable" class="breakdown-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 履歴・データ管理ビュー ==================== -->
+    <section id="view-history" class="view-section" aria-labelledby="history-heading" hidden>
+      <div class="card">
+        <div class="section-toolbar">
+          <div>
+            <h1 id="history-heading" class="card-title">トレーニング履歴</h1>
+            <p class="card-subtitle">カレンダーで実施日を確認したり、過去の記録の検索・編集・削除を行えます。</p>
+          </div>
+          <div class="data-actions-row">
+            <button type="button" id="loadSampleBtn" class="btn-secondary-sm">サンプルデータを投入</button>
+            <button type="button" id="exportJsonBtn" class="btn-secondary-sm">JSON出力</button>
+            <button type="button" id="clearAllBtn" class="btn-danger-sm">全データを削除</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="history-layout">
+        <div class="card history-calendar-card">
+          <div class="cal-header">
+            <div class="cal-nav-group">
+              <button type="button" id="calPrevMonthBtn" class="cal-nav-btn" aria-label="前の月">‹</button>
+              <h2 id="calMonthLabel" class="cal-month-title"></h2>
+              <button type="button" id="calNextMonthBtn" class="cal-nav-btn" aria-label="次の月">›</button>
+            </div>
+            <button type="button" id="calTodayBtn" class="btn-secondary-sm">今月</button>
+          </div>
+
+          <div class="cal-summary-bar">
+            <span id="calMonthSummary" class="muted-badge"></span>
+          </div>
+
+          <div class="cal-weekdays" aria-hidden="true">
+            <span class="is-sun">日</span>
+            <span>月</span>
+            <span>火</span>
+            <span>水</span>
+            <span>木</span>
+            <span>金</span>
+            <span class="is-sat">土</span>
+          </div>
+
+          <div id="historyCalendarGrid" class="cal-grid" role="grid" aria-label="筋トレ実施カレンダー"></div>
+
+          <div id="calPartLegend" class="cal-legend" aria-label="部位カラー凡例"></div>
+        </div>
+
+        <div class="card history-list-card">
+          <div class="history-filters-row">
+            <div id="historyPartFilter" class="filter-pills"></div>
+            <div class="history-search-wrap">
+              <input
+                id="historySearchInput"
+                type="search"
+                class="field-input"
+                placeholder="種目名やメモで検索..."
+                aria-label="履歴を検索"
+              />
+            </div>
+          </div>
+
+          <div id="historyDateBanner" class="history-date-banner" hidden></div>
+
+          <div id="historyList" class="history-cards-list"></div>
+        </div>
+      </div>
+    </section>
+    </div>
+  </main>
+
+  <!-- モバイル下部ナビゲーション -->
+  <nav class="mobile-bottom-nav" aria-label="モバイルナビゲーション">
+    <button type="button" class="mobile-tab is-active" data-tab="record">
+      <span class="mobile-tab-icon" aria-hidden="true">＋</span>
+      <span>記録</span>
+    </button>
+    <button type="button" class="mobile-tab" data-tab="growth">
+      <span class="mobile-tab-icon" aria-hidden="true">📈</span>
+      <span>成長</span>
+    </button>
+    <button type="button" class="mobile-tab" data-tab="balance">
+      <span class="mobile-tab-icon" aria-hidden="true">⚖️</span>
+      <span>バランス</span>
+    </button>
+    <button type="button" class="mobile-tab" data-tab="history">
+      <span class="mobile-tab-icon" aria-hidden="true">🗂️</span>
+      <span>履歴</span>
+    </button>
+  </nav>
+
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <script src="src/constants.js"></script>
+  <script src="src/calculations.js"></script>
+  <script src="src/sampleData.js"></script>
+  <script src="src/storage.js"></script>
+  <script src="src/charts.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>
