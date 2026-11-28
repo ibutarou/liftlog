@@ -138,6 +138,14 @@
     toastContainer: document.getElementById('toastContainer'),
   };
 
+  const UI_ICONS = {
+    moon: '<svg class="ui-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+    sun: '<svg class="ui-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>',
+    trophy: '<svg class="ui-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 5H4v2.5A2.5 2.5 0 0 0 6.5 10H7M17 5h3v2.5A2.5 2.5 0 0 1 17.5 10H17"/></svg>',
+    calendar: '<svg class="ui-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false"><rect x="3.5" y="4.5" width="17" height="16" rx="3"/><path d="M8 2.5v4M16 2.5v4M3.5 10h17"/></svg>',
+    sparkStar: '<svg class="ui-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="m12 3 2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z"/></svg>',
+  };
+
   function applyTheme(theme) {
     const resolved = theme === 'dark' ? 'dark' : 'light';
     state.theme = resolved;
@@ -147,7 +155,7 @@
       const isDark = resolved === 'dark';
       const iconEl = els.themeToggleBtn.querySelector('.theme-toggle-icon');
       const labelEl = els.themeToggleBtn.querySelector('.theme-toggle-label');
-      if (iconEl) iconEl.textContent = isDark ? '☀️' : '🌙';
+      if (iconEl) iconEl.innerHTML = isDark ? UI_ICONS.sun : UI_ICONS.moon;
       if (labelEl) labelEl.textContent = isDark ? 'ライト' : 'ダーク';
       els.themeToggleBtn.setAttribute('aria-pressed', String(isDark));
       els.themeToggleBtn.setAttribute(
@@ -160,7 +168,16 @@
   function showToast(message, isPR) {
     const toast = document.createElement('div');
     toast.className = `toast${isPR ? ' is-pr' : ''}`;
-    toast.textContent = message;
+    if (isPR) {
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'toast-icon';
+      iconSpan.setAttribute('aria-hidden', 'true');
+      iconSpan.innerHTML = UI_ICONS.trophy;
+      toast.appendChild(iconSpan);
+    }
+    const textSpan = document.createElement('span');
+    textSpan.textContent = message;
+    toast.appendChild(textSpan);
     els.toastContainer.appendChild(toast);
     setTimeout(() => {
       toast.remove();
@@ -446,7 +463,7 @@
         const labels = [];
         if (evaluation.isOneRMPR) labels.push(`推定1RM +${formatNumber(evaluation.oneRMDelta)}kg`);
         if (evaluation.isVolumePR) labels.push(`総ボリューム +${formatNumber(evaluation.volumeDelta)}kg`);
-        prHtml = `<span class="pr-pill">🏆 自己ベスト更新予定 (${escapeHtml(labels.join(' / '))})</span>`;
+        prHtml = `<span class="pr-pill">${UI_ICONS.trophy}<span>自己ベスト更新予定 (${escapeHtml(labels.join(' / '))})</span></span>`;
       }
     }
 
@@ -826,7 +843,7 @@
     if (state.historySelectedDate) {
       els.historyDateBanner.hidden = false;
       els.historyDateBanner.innerHTML = `
-        <span>📅 ${escapeHtml(state.historySelectedDate)} の記録を表示中</span>
+        <span class="history-date-label">${UI_ICONS.calendar}<span>${escapeHtml(state.historySelectedDate)} の記録を表示中</span></span>
         <button type="button" id="clearSelectedDateBtn" class="btn-secondary-sm">日付指定を解除</button>
       `;
     } else {
@@ -992,7 +1009,7 @@
         const parts = [];
         if (prCheck.isOneRMPR) parts.push(`推定1RM ${formatNumber(prCheck.oneRM)}kg (+${formatNumber(prCheck.oneRMDelta)}kg)`);
         if (prCheck.isVolumePR) parts.push(`総ボリューム ${formatNumber(prCheck.volume)}kg`);
-        showToast(`🎉 自己ベスト更新！ ${exerciseName}：${parts.join(' / ')}`, true);
+        showToast(`自己ベスト更新！ ${exerciseName}：${parts.join(' / ')}`, true);
       } else {
         showToast(`保存しました：${exerciseName} (${formatNumber(weight)}kg × ${Math.round(reps)}回 × ${Math.round(sets)}セット)`, false);
       }

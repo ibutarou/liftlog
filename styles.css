@@ -202,6 +202,18 @@ button {
   flex-shrink: 0;
 }
 
+.brand-logo svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+.ui-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
 .brand-name {
   display: block;
   font-weight: 800;
@@ -286,8 +298,11 @@ button {
 }
 
 .theme-toggle-icon {
-  font-size: 14px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
 }
 
 /* Main container */
@@ -1473,8 +1488,15 @@ body.is-modal-open {
 }
 
 .chart-empty-icon {
-  font-size: 32px;
-  margin-bottom: 6px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  color: var(--text-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px;
 }
 
 .chart-empty-title {
@@ -1989,6 +2011,12 @@ body.is-modal-open {
   color: var(--primary-soft-text);
 }
 
+.history-date-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .cal-empty-callout {
   text-align: center;
   padding: 24px 14px;
@@ -2164,6 +2192,9 @@ body.is-modal-open {
 }
 
 .toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: var(--tooltip-bg);
   color: #ffffff;
   border: 1px solid var(--tooltip-border);
@@ -2173,6 +2204,12 @@ body.is-modal-open {
   font-size: 13px;
   font-weight: 600;
   animation: toastIn 0.2s ease;
+}
+
+.toast-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .toast.is-pr {
@@ -2287,8 +2324,17 @@ body.is-modal-open {
   }
 
   .mobile-tab-icon {
-    font-size: 16px;
-    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+  }
+
+  .mobile-tab-icon svg {
+    width: 20px;
+    height: 20px;
+    display: block;
   }
 
   .mobile-tab.is-active {

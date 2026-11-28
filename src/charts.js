@@ -101,7 +101,13 @@
     if (entries.length === 0) {
       container.innerHTML = `
         <div class="chart-empty">
-          <div class="chart-empty-icon" aria-hidden="true">📈</div>
+          <div class="chart-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 19h18" />
+              <path d="m4.5 14.5 5-5 4 3 6-6" />
+              <path d="M15.5 6.5h4v4" />
+            </svg>
+          </div>
           <p class="chart-empty-title">選択した種目の記録がまだありません</p>
           <p class="chart-empty-sub">「記録」タブからトレーニングを登録すると、推定1RMや総ボリュームの推移がここに表示されます。</p>
         </div>
@@ -288,7 +294,12 @@
     if (total === 0) {
       container.innerHTML = `
         <div class="chart-empty">
-          <div class="chart-empty-icon" aria-hidden="true">🕸️</div>
+          <div class="chart-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 3 19.8 7.5 19.8 16.5 12 21 4.2 16.5 4.2 7.5" />
+              <polygon points="12 8 15.5 10 15.5 14 12 16 8.5 14 8.5 10" />
+            </svg>
+          </div>
           <p class="chart-empty-title">選択期間のトレーニングデータがありません</p>
           <p class="chart-empty-sub">期間を「直近30日」や「全期間」に切り替えるか、新しい記録を追加してください。</p>
         </div>
@@ -438,7 +449,14 @@
     if (total === 0) {
       container.innerHTML = `
         <div class="chart-empty">
-          <div class="chart-empty-icon" aria-hidden="true">📊</div>
+          <div class="chart-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 19h18" />
+              <rect x="5" y="11" width="3.5" height="5" rx="1" />
+              <rect x="10.25" y="7" width="3.5" height="9" rx="1" />
+              <rect x="15.5" y="4" width="3.5" height="12" rx="1" />
+            </svg>
+          </div>
           <p class="chart-empty-title">選択期間のトレーニングデータがありません</p>
           <p class="chart-empty-sub">期間を切り替えるか、新しいトレーニングを記録してください。</p>
         </div>

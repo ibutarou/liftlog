@@ -53,6 +53,41 @@ const STATIC_ASSETS = {
     relPath: 'src/app.js',
     contentType: 'application/javascript; charset=utf-8',
   },
+  '/manifest.webmanifest': {
+    filePath: path.join(ROOT_DIR, 'manifest.webmanifest'),
+    relPath: 'manifest.webmanifest',
+    contentType: 'application/manifest+json; charset=utf-8',
+  },
+  '/icons/icon.svg': {
+    filePath: path.join(ROOT_DIR, 'icons/icon.svg'),
+    relPath: 'icons/icon.svg',
+    contentType: 'image/svg+xml; charset=utf-8',
+  },
+  '/icons/icon-32.png': {
+    filePath: path.join(ROOT_DIR, 'icons/icon-32.png'),
+    relPath: 'icons/icon-32.png',
+    contentType: 'image/png',
+  },
+  '/icons/apple-touch-icon.png': {
+    filePath: path.join(ROOT_DIR, 'icons/apple-touch-icon.png'),
+    relPath: 'icons/apple-touch-icon.png',
+    contentType: 'image/png',
+  },
+  '/apple-touch-icon.png': {
+    filePath: path.join(ROOT_DIR, 'icons/apple-touch-icon.png'),
+    relPath: 'icons/apple-touch-icon.png',
+    contentType: 'image/png',
+  },
+  '/icons/icon-192.png': {
+    filePath: path.join(ROOT_DIR, 'icons/icon-192.png'),
+    relPath: 'icons/icon-192.png',
+    contentType: 'image/png',
+  },
+  '/icons/icon-512.png': {
+    filePath: path.join(ROOT_DIR, 'icons/icon-512.png'),
+    relPath: 'icons/icon-512.png',
+    contentType: 'image/png',
+  },
 };
 
 async function readStaticAsset(asset) {
