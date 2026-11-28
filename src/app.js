@@ -99,6 +99,7 @@
     growthKpiGrid: document.getElementById('growthKpiGrid'),
     growthChartContainer: document.getElementById('growthChartContainer'),
     growthHistoryCount: document.getElementById('growthHistoryCount'),
+    growthHistoryShell: document.getElementById('growthHistoryShell'),
     growthHistoryTable: document.getElementById('growthHistoryTable'),
     // Balance
     periodFilterGroup: document.getElementById('periodFilterGroup'),
@@ -627,29 +628,33 @@
 
     els.growthHistoryCount.textContent = `${history.totalSessions} 件`;
     const newestFirst = [...history.entries].reverse();
+    const formatCompactDate = (dateStr) => {
+      const parts = String(dateStr || '').split('-');
+      return parts.length === 3 ? `${Number(parts[1])}/${Number(parts[2])}` : String(dateStr || '');
+    };
     els.growthHistoryTable.innerHTML = `
       <table class="data-table">
         <thead>
           <tr>
             <th>日付</th>
-            <th>重量 × 回数 × セット</th>
-            <th>推定1RM</th>
-            <th>総ボリューム</th>
-            <th>メモ</th>
+            <th class="col-num">重量 × 回数 × セット</th>
+            <th class="col-num">推定1RM</th>
+            <th class="col-num">総ボリューム</th>
+            <th class="col-memo">メモ</th>
           </tr>
         </thead>
         <tbody>
           ${newestFirst
             .map((entry) => {
-              const rmBadge = entry.isOneRMPR ? ' <span class="pr-pill">★ 1RM PR</span>' : '';
-              const volBadge = entry.isVolumePR ? ' <span class="pr-pill">★ Vol PR</span>' : '';
+              const rmBadge = entry.isOneRMPR ? ' <span class="pr-pill">★ <span class="pr-label-full">1RM </span>PR</span>' : '';
+              const volBadge = entry.isVolumePR ? ' <span class="pr-pill">★ <span class="pr-label-full">Vol </span>PR</span>' : '';
               return `
                 <tr>
-                  <td>${escapeHtml(entry.date)}</td>
-                  <td>${escapeHtml(formatNumber(entry.weight))}kg × ${escapeHtml(entry.reps)} × ${escapeHtml(entry.sets)}</td>
-                  <td><strong>${escapeHtml(formatNumber(entry.oneRM))}kg</strong>${rmBadge}</td>
-                  <td><strong>${escapeHtml(formatNumber(entry.volume))}kg</strong>${volBadge}</td>
-                  <td>${escapeHtml(entry.memo || '—')}</td>
+                  <td class="col-date"><span class="date-full">${escapeHtml(entry.date)}</span><span class="date-short">${escapeHtml(formatCompactDate(entry.date))}</span></td>
+                  <td class="col-num">${escapeHtml(formatNumber(entry.weight))}kg × ${escapeHtml(entry.reps)} × ${escapeHtml(entry.sets)}</td>
+                  <td class="col-num"><strong>${escapeHtml(formatNumber(entry.oneRM))}kg</strong>${rmBadge}</td>
+                  <td class="col-num"><strong>${escapeHtml(formatNumber(entry.volume))}kg</strong>${volBadge}</td>
+                  <td class="col-memo">${escapeHtml(entry.memo || '—')}</td>
                 </tr>
               `;
             })
@@ -657,6 +662,16 @@
         </tbody>
       </table>
     `;
+    requestAnimationFrame(updateHistoryTableScrollFade);
+  }
+
+  function updateHistoryTableScrollFade() {
+    const wrap = els.growthHistoryTable;
+    const shell = els.growthHistoryShell;
+    if (!wrap || !shell) return;
+    const hasOverflow = wrap.scrollWidth - wrap.clientWidth > 2;
+    const atRightEnd = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 2;
+    shell.classList.toggle('is-scrollable-right', hasOverflow && !atRightEnd);
   }
 
   function renderBalanceView() {
@@ -1224,6 +1239,19 @@
         state.growthMetric = btn.dataset.growthMetric;
         renderGrowthView();
       });
+    });
+
+    if (els.growthHistoryTable) {
+      els.growthHistoryTable.addEventListener('scroll', updateHistoryTableScrollFade, { passive: true });
+    }
+
+    let growthResizeTimer = null;
+    window.addEventListener('resize', () => {
+      if (state.activeTab !== 'growth') return;
+      clearTimeout(growthResizeTimer);
+      growthResizeTimer = setTimeout(() => {
+        renderGrowthView();
+      }, 120);
     });
 
     // Balance controls

@@ -196,7 +196,7 @@
 
     <!-- ==================== 成長グラフビュー ==================== -->
     <section id="view-growth" class="view-section" aria-labelledby="growth-heading" hidden>
-      <div class="card">
+      <div class="card growth-card">
         <div class="section-toolbar">
           <div>
             <h1 id="growth-heading" class="card-title">種目別の成長グラフ</h1>
@@ -227,12 +227,15 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card growth-history-card">
         <div class="card-header-row">
           <h2 class="card-title-sm">この種目の推移履歴</h2>
           <span id="growthHistoryCount" class="muted-badge"></span>
         </div>
-        <div id="growthHistoryTable" class="history-table-wrap"></div>
+        <div id="growthHistoryShell" class="history-table-shell">
+          <div id="growthHistoryTable" class="history-table-wrap"></div>
+          <div class="history-table-fade" aria-hidden="true"></div>
+        </div>
       </div>
     </section>
 

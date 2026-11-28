@@ -68,6 +68,30 @@
   }
 
   /**
+   * Computes responsive SVG geometry for the growth chart based on container/viewport width.
+   */
+  function computeGrowthChartLayout({ containerWidth = 680, viewportWidth = 1024 } = {}) {
+    const isCompact = viewportWidth > 0 && viewportWidth < 640;
+    if (isCompact) {
+      const resolvedW = containerWidth > 0 ? Math.max(260, Math.round(containerWidth)) : Math.max(280, Math.round(viewportWidth - 36));
+      return {
+        isCompact: true,
+        W: resolvedW,
+        H: 268,
+        margin: { top: 24, right: 14, bottom: 32, left: 40 },
+        maxLabels: 4,
+      };
+    }
+    return {
+      isCompact: false,
+      W: 680,
+      H: 310,
+      margin: { top: 28, right: 24, bottom: 40, left: 58 },
+      maxLabels: 6,
+    };
+  }
+
+  /**
    * Renders the exercise growth line/area chart with PR markers and interactive tooltip.
    */
   function renderGrowthChart(container, { history, metric, onSelectPoint }) {
@@ -92,9 +116,12 @@
     const padding = rawMax === rawMin ? Math.max(5, rawMax * 0.15) : (rawMax - rawMin) * 0.14;
     const { min, max, ticks } = computeNiceTicks(Math.max(0, rawMin - padding), rawMax + padding, 5);
 
-    const W = 680;
-    const H = 300;
-    const margin = { top: 28, right: 24, bottom: 40, left: 58 };
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
+    const containerWidth = container.clientWidth || 0;
+    const { isCompact, W, H, margin, maxLabels } = computeGrowthChartLayout({
+      containerWidth,
+      viewportWidth,
+    });
     const plotW = W - margin.left - margin.right;
     const plotH = H - margin.top - margin.bottom;
 
@@ -137,32 +164,36 @@
         return `
           <g class="chart-grid-row">
             <line x1="${margin.left}" y1="${y.toFixed(1)}" x2="${W - margin.right}" y2="${y.toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="4 4" />
-            <text x="${margin.left - 10}" y="${(y + 4).toFixed(1)}" text-anchor="end" class="chart-axis-text">${escapeHtml(formatNumber(t))}</text>
+            <text x="${margin.left - (isCompact ? 6 : 10)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" class="chart-axis-text">${escapeHtml(formatNumber(t))}</text>
           </g>
         `;
       })
       .join('');
 
-    const maxLabels = 6;
     const labelStep = Math.max(1, Math.ceil(points.length / maxLabels));
     const xLabelsSvg = points
       .filter((p, idx) => idx === 0 || idx === points.length - 1 || idx % labelStep === 0)
       .map((p) => {
-        return `<text x="${p.x.toFixed(1)}" y="${H - 12}" text-anchor="middle" class="chart-axis-text">${escapeHtml(formatShortDate(p.entry.date))}</text>`;
+        return `<text x="${p.x.toFixed(1)}" y="${H - (isCompact ? 8 : 12)}" text-anchor="middle" class="chart-axis-text">${escapeHtml(formatShortDate(p.entry.date))}</text>`;
       })
       .join('');
 
+    const isSinglePoint = points.length === 1;
     const pointsSvg = points
       .map((p) => {
         const prRing = p.isPR
           ? `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="10" fill="rgba(245, 158, 11, 0.22)" />
              <text x="${p.x.toFixed(1)}" y="${(p.y - 14).toFixed(1)}" text-anchor="middle" class="chart-pr-star">★ PR</text>`
           : '';
+        const singleValueLabel = isSinglePoint
+          ? `<text x="${(p.x + 12).toFixed(1)}" y="${(p.y + 4).toFixed(1)}" text-anchor="start" class="chart-point-value">${escapeHtml(formatNumber(p.val))}kg</text>`
+          : '';
         const fill = p.isPR ? 'var(--gold)' : 'var(--chart-line)';
         const stroke = 'var(--chart-dot-stroke)';
         return `
           <g class="chart-point-group" data-point-idx="${p.idx}" tabindex="0" role="button" aria-label="${escapeHtml(p.entry.date)} ${escapeHtml(formatNumber(p.val))}${isOneRM ? 'kg' : 'kgボリューム'}">
             ${prRing}
+            ${singleValueLabel}
             <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="16" fill="transparent" class="chart-hit-area" />
             <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${p.isPR ? 6 : 4.5}" fill="${fill}" stroke="${stroke}" stroke-width="2" class="chart-dot" />
           </g>
@@ -170,29 +201,28 @@
       })
       .join('');
 
-    const singleNote =
-      points.length === 1
-        ? `<text x="${(margin.left + plotW / 2).toFixed(1)}" y="${(margin.top + 18).toFixed(1)}" text-anchor="middle" class="chart-single-note">2回目以降の記録を追加すると推移線が表示されます</text>`
-        : '';
+    const singleCaptionHtml = isSinglePoint
+      ? '<p class="chart-single-caption">※ 2回目以降の記録から推移線が表示されます</p>'
+      : '';
 
     const gradientId = `growthAreaGrad_${Math.random().toString(36).slice(2, 8)}`;
     const unitLabel = isOneRM ? 'kg (推定1RM)' : 'kg (総ボリューム)';
 
     container.innerHTML = `
+      ${singleCaptionHtml}
       <div class="svg-chart-wrap">
-        <svg viewBox="0 0 ${W} ${H}" class="growth-svg" role="img" aria-label="種目成長グラフ">
+        <svg viewBox="0 0 ${W} ${H}" class="growth-svg${isCompact ? ' is-compact' : ''}" role="img" aria-label="種目成長グラフ">
           <defs>
             <linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="var(--chart-area)" stop-opacity="0.24" />
               <stop offset="100%" stop-color="var(--chart-area)" stop-opacity="0.01" />
             </linearGradient>
           </defs>
-          <text x="${margin.left}" y="15" class="chart-unit-label">${escapeHtml(unitLabel)}</text>
+          <text x="${margin.left}" y="${isCompact ? 13 : 15}" class="chart-unit-label">${escapeHtml(unitLabel)}</text>
           ${gridLinesSvg}
           ${xLabelsSvg}
           ${areaPath ? `<path d="${areaPath}" fill="url(#${gradientId})" />` : ''}
           ${points.length > 1 ? `<path d="${linePath}" fill="none" stroke="var(--chart-line)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />` : ''}
-          ${singleNote}
           ${pointsSvg}
         </svg>
         <div class="chart-tooltip" hidden></div>
@@ -449,6 +479,7 @@
   }
 
   const api = {
+    computeGrowthChartLayout,
     renderGrowthChart,
     renderRadarChart,
     renderBarChart,

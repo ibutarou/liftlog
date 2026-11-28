@@ -18,6 +18,7 @@ const {
   computeTutorialPopoverPosition,
 } = require('../src/calculations.js');
 const { createSampleWorkouts } = require('../src/sampleData.js');
+const { computeGrowthChartLayout } = require('../src/charts.js');
 
 test('calculateOneRM calculates weight * (1 + reps / 30) rounded to 1 decimal', () => {
   assert.equal(calculateOneRM(60, 10), 80);
@@ -422,4 +423,24 @@ test('computeTutorialPopoverPosition places popover below or above spotlight and
   assert.ok(mobileSafePos.spotlight.top >= 65);
   assert.ok(mobileSafePos.spotlight.top + mobileSafePos.spotlight.height <= 844 - 68);
   assert.ok(mobileSafePos.top + 210 <= 844 - 68);
+});
+
+test('computeGrowthChartLayout adapts dimensions and margins for mobile vs desktop', () => {
+  const mobileLayout = computeGrowthChartLayout({ containerWidth: 350, viewportWidth: 390 });
+  assert.equal(mobileLayout.isCompact, true);
+  assert.equal(mobileLayout.W, 350);
+  assert.ok(mobileLayout.H >= 256);
+  assert.ok(mobileLayout.margin.left <= 42);
+  assert.equal(mobileLayout.maxLabels, 4);
+
+  const fallbackMobile = computeGrowthChartLayout({ containerWidth: 0, viewportWidth: 390 });
+  assert.equal(fallbackMobile.isCompact, true);
+  assert.ok(fallbackMobile.W >= 280);
+
+  const desktopLayout = computeGrowthChartLayout({ containerWidth: 700, viewportWidth: 1280 });
+  assert.equal(desktopLayout.isCompact, false);
+  assert.equal(desktopLayout.W, 680);
+  assert.equal(desktopLayout.H, 310);
+  assert.equal(desktopLayout.margin.left, 58);
+  assert.equal(desktopLayout.maxLabels, 6);
 });

@@ -1369,6 +1369,33 @@ body.is-modal-open {
   fill: var(--text-soft);
 }
 
+.chart-single-caption {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--text-soft);
+  line-height: 1.4;
+}
+
+.chart-point-value {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.growth-svg.is-compact .chart-axis-text,
+.growth-svg.is-compact .chart-unit-label {
+  font-size: 10px;
+}
+
+.growth-svg.is-compact .chart-pr-star {
+  font-size: 10px;
+}
+
+.growth-svg.is-compact .chart-point-value {
+  font-size: 11px;
+}
+
 .chart-point-group,
 .radar-dot-group {
   cursor: pointer;
@@ -1462,15 +1489,37 @@ body.is-modal-open {
 }
 
 /* History table inside Growth */
+.history-table-shell {
+  position: relative;
+}
+
 .history-table-wrap {
   overflow-x: auto;
   touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.history-table-fade {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 28px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--card-bg));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.history-table-shell.is-scrollable-right .history-table-fade {
+  opacity: 1;
 }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
 .data-table th,
@@ -1479,6 +1528,20 @@ body.is-modal-open {
   border-bottom: 1px solid var(--border);
   text-align: left;
   white-space: nowrap;
+}
+
+.data-table th.col-num,
+.data-table td.col-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table td.col-date {
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table .date-short {
+  display: none;
 }
 
 .data-table th {
@@ -2238,6 +2301,74 @@ body.is-modal-open {
     right: 12px;
     bottom: calc(74px + env(safe-area-inset-bottom));
     max-width: none;
+  }
+}
+
+@media (max-width: 639px) {
+  #view-growth > .growth-card,
+  #view-growth > .growth-history-card {
+    padding: 14px 10px;
+  }
+
+  .growth-card .chart-panel {
+    padding: 10px 8px;
+  }
+
+  .growth-card .chart-legend-row {
+    flex-wrap: nowrap;
+    gap: 12px;
+    font-size: 11.5px;
+    margin-bottom: 4px;
+  }
+
+  .growth-card .legend-item {
+    gap: 5px;
+    white-space: nowrap;
+  }
+
+  .growth-card .legend-dot {
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+  }
+
+  .growth-card .chart-single-caption {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+
+  .growth-svg {
+    min-height: 264px;
+  }
+
+  .growth-history-card .data-table {
+    font-size: 12px;
+  }
+
+  .growth-history-card .data-table th {
+    font-size: 11px;
+  }
+
+  .growth-history-card .data-table th,
+  .growth-history-card .data-table td {
+    padding: 8px 6px;
+  }
+
+  .growth-history-card .data-table .date-full {
+    display: none;
+  }
+
+  .growth-history-card .data-table .date-short {
+    display: inline;
+  }
+
+  .growth-history-card .pr-pill {
+    padding: 1px 5px;
+    font-size: 10px;
+  }
+
+  .growth-history-card .pr-label-full {
+    display: none;
   }
 }
 
