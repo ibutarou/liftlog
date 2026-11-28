@@ -18,12 +18,16 @@
     buildCalendarMonthData,
     evaluateSwipeNavigation,
     computeSwipeDragState,
+    computeTutorialPopoverPosition,
   } = Calculations;
   const { escapeHtml, formatNumber } = Charts;
 
   const now = new Date();
   const state = {
     workouts: Storage.loadWorkouts(),
+    exercisePresets: Storage.loadPresets(),
+    isPresetModalOpen: false,
+    presetModalBodyPart: 'chest',
     theme: Storage.loadTheme(),
     activeTab: 'record',
     selectedBodyPart: 'chest',
@@ -42,7 +46,9 @@
 
   // DOM References
   const els = {
+    appHeader: document.querySelector('.app-header'),
     appMain: document.querySelector('.app-main'),
+    mobileBottomNav: document.querySelector('.mobile-bottom-nav'),
     swipeStage: document.getElementById('swipeStage'),
     desktopTabs: document.querySelectorAll('.desktop-nav .nav-tab'),
     mobileTabs: document.querySelectorAll('.mobile-bottom-nav .mobile-tab'),
@@ -53,7 +59,6 @@
       history: document.getElementById('view-history'),
     },
     sampleDataBadge: document.getElementById('sampleDataBadge'),
-    quickSampleBtn: document.getElementById('quickSampleBtn'),
     themeToggleBtn: document.getElementById('themeToggleBtn'),
     workoutForm: document.getElementById('workoutForm'),
     recordHeading: document.getElementById('record-heading'),
@@ -62,7 +67,20 @@
     bodyPartSelector: document.getElementById('bodyPartSelector'),
     inputExercise: document.getElementById('inputExercise'),
     exerciseSuggestions: document.getElementById('exerciseSuggestions'),
+    presetChipsLabel: document.getElementById('presetChipsLabel'),
+    togglePresetEditBtn: document.getElementById('togglePresetEditBtn'),
     presetExerciseChips: document.getElementById('presetExerciseChips'),
+    presetEditorModal: document.getElementById('presetEditorModal'),
+    closePresetModalBtn: document.getElementById('closePresetModalBtn'),
+    presetModalPartTabs: document.getElementById('presetModalPartTabs'),
+    presetModalPartLabel: document.getElementById('presetModalPartLabel'),
+    presetModalCount: document.getElementById('presetModalCount'),
+    presetModalChips: document.getElementById('presetModalChips'),
+    newPresetInput: document.getElementById('newPresetInput'),
+    addPresetBtn: document.getElementById('addPresetBtn'),
+    presetFromHistoryRow: document.getElementById('presetFromHistoryRow'),
+    resetPresetsBtn: document.getElementById('resetPresetsBtn'),
+    donePresetEditBtn: document.getElementById('donePresetEditBtn'),
     previousRecordInline: document.getElementById('previousRecordInline'),
     inputWeight: document.getElementById('inputWeight'),
     inputReps: document.getElementById('inputReps'),
@@ -91,7 +109,6 @@
     balanceChartContainer: document.getElementById('balanceChartContainer'),
     balanceBreakdownTable: document.getElementById('balanceBreakdownTable'),
     // History
-    loadSampleBtn: document.getElementById('loadSampleBtn'),
     exportJsonBtn: document.getElementById('exportJsonBtn'),
     clearAllBtn: document.getElementById('clearAllBtn'),
     calPrevMonthBtn: document.getElementById('calPrevMonthBtn'),
@@ -105,6 +122,18 @@
     historySearchInput: document.getElementById('historySearchInput'),
     historyDateBanner: document.getElementById('historyDateBanner'),
     historyList: document.getElementById('historyList'),
+    // Tutorial
+    tutorialOverlay: document.getElementById('tutorialOverlay'),
+    tutorialSpotlight: document.getElementById('tutorialSpotlight'),
+    tutorialCard: document.getElementById('tutorialCard'),
+    tutorialStepBadge: document.getElementById('tutorialStepBadge'),
+    tutorialDots: document.getElementById('tutorialDots'),
+    tutorialSkipBtn: document.getElementById('tutorialSkipBtn'),
+    tutorialTitle: document.getElementById('tutorialTitle'),
+    tutorialBody: document.getElementById('tutorialBody'),
+    tutorialNote: document.getElementById('tutorialNote'),
+    tutorialPrevBtn: document.getElementById('tutorialPrevBtn'),
+    tutorialNextBtn: document.getElementById('tutorialNextBtn'),
     toastContainer: document.getElementById('toastContainer'),
   };
 
@@ -181,7 +210,6 @@
   function renderBodyPartPills() {
     els.bodyPartSelector.innerHTML = BODY_PARTS.map((part) => {
       const selected = part.id === state.selectedBodyPart;
-      const style = selected ? `style="background:${escapeHtml(part.color)};"` : '';
       return `
         <button
           type="button"
@@ -189,7 +217,7 @@
           data-body-part="${escapeHtml(part.id)}"
           role="radio"
           aria-checked="${selected}"
-          ${style}
+          style="--part-color:${escapeHtml(part.color)};"
         >
           <span class="part-dot" style="background:${escapeHtml(part.color)}"></span>
           <span>${escapeHtml(part.label)}</span>
@@ -199,11 +227,14 @@
   }
 
   function renderExerciseSuggestions() {
-    const uniqueNames = new Set();
     const partObj = BODY_PART_MAP[state.selectedBodyPart];
-    if (partObj) {
-      partObj.presets.forEach((p) => uniqueNames.add(p));
-    }
+    const currentPresets = Array.isArray(state.exercisePresets[state.selectedBodyPart])
+      ? state.exercisePresets[state.selectedBodyPart]
+      : partObj
+      ? [...partObj.presets]
+      : [];
+
+    const uniqueNames = new Set(currentPresets);
     state.workouts.forEach((w) => {
       if (w.bodyPart === state.selectedBodyPart && w.exerciseName) {
         uniqueNames.add(w.exerciseName);
@@ -217,16 +248,22 @@
       .map((name) => `<option value="${escapeHtml(name)}"></option>`)
       .join('');
 
-    const presetSet = new Set(partObj ? partObj.presets : []);
-    state.workouts.forEach((w) => {
-      if (w.bodyPart === state.selectedBodyPart) {
-        presetSet.add(w.exerciseName);
-      }
-    });
+    const partLabel = partObj ? partObj.label : '';
+    if (els.presetChipsLabel) {
+      els.presetChipsLabel.textContent = `よく使う種目（${partLabel}）`;
+    }
+    if (els.togglePresetEditBtn) {
+      els.togglePresetEditBtn.setAttribute('aria-expanded', String(state.isPresetModalOpen));
+    }
+
+    if (currentPresets.length === 0) {
+      els.presetExerciseChips.innerHTML =
+        '<span class="preset-empty-hint">よく使う種目は未設定です（「編集」から追加できます）。</span>';
+      return;
+    }
 
     const currentNormalized = normalizeExerciseName(els.inputExercise.value);
-    els.presetExerciseChips.innerHTML = Array.from(presetSet)
-      .slice(0, 6)
+    els.presetExerciseChips.innerHTML = currentPresets
       .map((name) => {
         const isCurrent = normalizeExerciseName(name) === currentNormalized && currentNormalized !== '';
         return `<button type="button" class="chip-btn ${isCurrent ? 'is-active' : ''}" data-preset-exercise="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
@@ -234,27 +271,126 @@
       .join('');
   }
 
+  function renderPresetEditorModal() {
+    if (!els.presetEditorModal) return;
+
+    const targetPartId = BODY_PART_MAP[state.presetModalBodyPart] ? state.presetModalBodyPart : 'chest';
+    state.presetModalBodyPart = targetPartId;
+    const partObj = BODY_PART_MAP[targetPartId];
+    const currentPresets = Array.isArray(state.exercisePresets[targetPartId])
+      ? state.exercisePresets[targetPartId]
+      : partObj
+      ? [...partObj.presets]
+      : [];
+
+    if (els.presetModalPartTabs) {
+      els.presetModalPartTabs.innerHTML = BODY_PARTS.map((part) => {
+        const selected = part.id === targetPartId;
+        return `
+          <button
+            type="button"
+            class="part-pill ${selected ? 'is-selected' : ''}"
+            data-modal-part="${escapeHtml(part.id)}"
+            role="tab"
+            aria-selected="${selected}"
+            style="--part-color:${escapeHtml(part.color)};"
+          >
+            <span class="part-dot" style="background:${escapeHtml(part.color)}"></span>
+            <span>${escapeHtml(part.label)}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    if (els.presetModalPartLabel) {
+      els.presetModalPartLabel.textContent = `表示中の種目（${partObj ? partObj.label : ''}）`;
+    }
+    if (els.presetModalCount) {
+      els.presetModalCount.textContent = `${currentPresets.length} 件`;
+    }
+
+    if (els.presetModalChips) {
+      if (currentPresets.length === 0) {
+        els.presetModalChips.innerHTML =
+          '<span class="preset-empty-hint">表示中の種目はありません。下の欄から追加してください。</span>';
+      } else {
+        els.presetModalChips.innerHTML = currentPresets
+          .map(
+            (name) => `
+              <button
+                type="button"
+                class="chip-btn is-editable"
+                data-remove-preset="${escapeHtml(name)}"
+                aria-label="${escapeHtml(name)}をショートカットから削除"
+              >
+                <span>${escapeHtml(name)}</span>
+                <span class="chip-remove-icon" aria-hidden="true">×</span>
+              </button>
+            `
+          )
+          .join('');
+      }
+    }
+
+    if (els.presetFromHistoryRow) {
+      const presetKeys = new Set(currentPresets.map((n) => normalizeExerciseName(n)));
+      const recordedForPart = [];
+      const seenRecorded = new Set();
+      for (const w of state.workouts) {
+        if (w.bodyPart !== targetPartId || !w.exerciseName) continue;
+        const key = normalizeExerciseName(w.exerciseName);
+        if (!presetKeys.has(key) && !seenRecorded.has(key)) {
+          seenRecorded.add(key);
+          recordedForPart.push(w.exerciseName.trim());
+        }
+      }
+      const candidates = recordedForPart.slice(0, 6);
+      if (candidates.length > 0) {
+        els.presetFromHistoryRow.hidden = false;
+        els.presetFromHistoryRow.innerHTML = `
+          <span class="preset-from-history-label">履歴から追加：</span>
+          <div class="preset-from-history-chips">
+            ${candidates
+              .map(
+                (name) =>
+                  `<button type="button" class="chip-btn is-suggestion" data-add-history-preset="${escapeHtml(name)}">＋ ${escapeHtml(name)}</button>`
+              )
+              .join('')}
+          </div>
+        `;
+      } else {
+        els.presetFromHistoryRow.hidden = true;
+        els.presetFromHistoryRow.innerHTML = '';
+      }
+    }
+  }
+
   function renderPreviousRecordBox() {
     const name = els.inputExercise.value.trim();
+    const clockSvg =
+      '<svg class="prev-record-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.75V8l2.25 1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
     if (!name) {
-      els.previousRecordInline.className = 'prev-record-box is-empty';
+      els.previousRecordInline.className = 'prev-record-box is-compact';
       els.previousRecordInline.innerHTML = `
-        <div class="prev-record-meta">種目名を入力・選択すると、同じ種目の前回記録がここに表示されます。</div>
+        ${clockSvg}
+        <span>前回記録：種目を選択するとここに表示されます</span>
       `;
       return;
     }
 
     const prev = getPreviousRecord(state.workouts, name, state.editingId);
     if (!prev) {
-      els.previousRecordInline.className = 'prev-record-box is-empty';
+      els.previousRecordInline.className = 'prev-record-box is-compact is-first';
       els.previousRecordInline.innerHTML = `
-        <div class="prev-record-meta">「<strong>${escapeHtml(name)}</strong>」の過去記録はまだありません（初回記録になります）。</div>
+        ${clockSvg}
+        <span>「<strong>${escapeHtml(name)}</strong>」の過去記録はまだありません（初回記録）</span>
       `;
       return;
     }
 
     const partLabel = BODY_PART_MAP[prev.bodyPart] ? BODY_PART_MAP[prev.bodyPart].label : prev.bodyPart;
-    els.previousRecordInline.className = 'prev-record-box';
+    els.previousRecordInline.className = 'prev-record-box is-expanded';
     els.previousRecordInline.innerHTML = `
       <div class="prev-record-top">
         <span class="prev-record-badge">前回の記録 (${escapeHtml(prev.date)})</span>
@@ -332,7 +468,17 @@
     );
 
     if (dayEntries.length === 0) {
-      els.dayWorkoutsList.innerHTML = '<p class="empty-muted">この日の記録はまだありません。</p>';
+      els.dayWorkoutsList.innerHTML = `
+        <div class="day-empty-state">
+          <div class="day-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>
+            </svg>
+          </div>
+          <p class="day-empty-title">この日の記録はまだありません</p>
+          <p class="day-empty-sub">左のフォームからトレーニングを記録しましょう</p>
+        </div>
+      `;
     } else {
       els.dayWorkoutsList.innerHTML = dayEntries
         .map((w) => {
@@ -359,15 +505,15 @@
     els.quickSummaryGrid.innerHTML = `
       <div class="mini-stat">
         <div class="mini-stat-label">7日間セット数</div>
-        <div class="mini-stat-value">${escapeHtml(stats7.totalSets)} set</div>
+        <div class="mini-stat-value"><span class="mini-stat-num">${escapeHtml(stats7.totalSets)}</span><span class="mini-stat-unit">set</span></div>
       </div>
       <div class="mini-stat">
         <div class="mini-stat-label">総ボリューム</div>
-        <div class="mini-stat-value">${escapeHtml(formatNumber(stats7.totalVolume))} kg</div>
+        <div class="mini-stat-value"><span class="mini-stat-num">${escapeHtml(formatNumber(stats7.totalVolume))}</span><span class="mini-stat-unit">kg</span></div>
       </div>
       <div class="mini-stat">
         <div class="mini-stat-label">実施部位数</div>
-        <div class="mini-stat-value">${escapeHtml(trainedPartsCount)} / 6</div>
+        <div class="mini-stat-value"><span class="mini-stat-num">${escapeHtml(trainedPartsCount)}</span><span class="mini-stat-unit">/ 6</span></div>
       </div>
     `;
   }
@@ -840,22 +986,6 @@
     refreshAllViews();
   }
 
-  function handleLoadSampleData() {
-    if (state.workouts.length > 0 && !Storage.isUsingSampleData()) {
-      const ok = window.confirm('現在の記録をサンプルデータ（約1ヶ月分の筋トレ履歴）で置き換えますか？');
-      if (!ok) return;
-    }
-    const today = new Date();
-    state.workouts = Storage.seedSampleData();
-    state.selectedExercise = 'ベンチプレス';
-    state.historySelectedDate = null;
-    state.historyCalendarYear = today.getFullYear();
-    state.historyCalendarMonth = today.getMonth();
-    resetFormToCreateMode(false);
-    refreshAllViews();
-    showToast('サンプルデータを投入しました', false);
-  }
-
   function bindEvents() {
     // Navigation tabs
     [...els.desktopTabs, ...els.mobileTabs].forEach((btn) => {
@@ -877,6 +1007,7 @@
       if (!btn) return;
       const name = btn.dataset.presetExercise;
       els.inputExercise.value = name;
+      els.formError.hidden = true;
       const prev = getPreviousRecord(state.workouts, name, state.editingId);
       if (prev && (!els.inputWeight.value || !els.inputReps.value)) {
         els.inputWeight.value = prev.weight;
@@ -887,6 +1018,155 @@
       renderPreviousRecordBox();
       renderLivePreview();
     });
+
+    function setBackgroundInert(locked) {
+      [els.appHeader, els.appMain, els.mobileBottomNav].forEach((node) => {
+        if (!node) return;
+        node.inert = locked;
+        if (locked) {
+          node.setAttribute('aria-hidden', 'true');
+        } else {
+          node.removeAttribute('aria-hidden');
+        }
+      });
+    }
+
+    function handleModalEscape(ev) {
+      if (ev.key === 'Escape' && state.isPresetModalOpen) {
+        ev.preventDefault();
+        closePresetModal();
+      }
+    }
+
+    function openPresetModal() {
+      if (!els.presetEditorModal || state.isPresetModalOpen) return;
+      state.isPresetModalOpen = true;
+      state.presetModalBodyPart = state.selectedBodyPart;
+      renderPresetEditorModal();
+      els.presetEditorModal.hidden = false;
+      document.body.classList.add('is-modal-open');
+      setBackgroundInert(true);
+      if (els.togglePresetEditBtn) {
+        els.togglePresetEditBtn.setAttribute('aria-expanded', 'true');
+      }
+      window.addEventListener('keydown', handleModalEscape);
+      if (els.newPresetInput) {
+        els.newPresetInput.value = '';
+        els.newPresetInput.focus();
+      }
+    }
+
+    function closePresetModal() {
+      if (!els.presetEditorModal || !state.isPresetModalOpen) return;
+      state.isPresetModalOpen = false;
+      els.presetEditorModal.hidden = true;
+      document.body.classList.remove('is-modal-open');
+      setBackgroundInert(false);
+      window.removeEventListener('keydown', handleModalEscape);
+      renderExerciseSuggestions();
+      if (els.togglePresetEditBtn) {
+        els.togglePresetEditBtn.focus();
+      }
+    }
+
+    function handleAddPreset(rawName) {
+      const targetPart = state.presetModalBodyPart;
+      const result = Storage.addPresetExercise(state.exercisePresets, targetPart, rawName);
+      if (result.added) {
+        state.exercisePresets = result.presets;
+        if (els.newPresetInput) {
+          els.newPresetInput.value = '';
+          els.newPresetInput.focus();
+        }
+        renderPresetEditorModal();
+        renderExerciseSuggestions();
+        showToast(`「${rawName.trim()}」をよく使う種目に追加しました`, false);
+      } else if (result.reason === 'duplicate') {
+        showToast('その種目はすでに登録されています', false);
+      } else if (result.reason === 'empty') {
+        if (els.newPresetInput) els.newPresetInput.focus();
+      }
+    }
+
+    if (els.togglePresetEditBtn) {
+      els.togglePresetEditBtn.addEventListener('click', openPresetModal);
+    }
+
+    if (els.closePresetModalBtn) {
+      els.closePresetModalBtn.addEventListener('click', closePresetModal);
+    }
+
+    if (els.donePresetEditBtn) {
+      els.donePresetEditBtn.addEventListener('click', closePresetModal);
+    }
+
+    if (els.presetEditorModal) {
+      els.presetEditorModal.addEventListener('click', (ev) => {
+        if (ev.target.closest('[data-close-preset-modal]')) {
+          closePresetModal();
+        }
+      });
+    }
+
+    if (els.presetModalPartTabs) {
+      els.presetModalPartTabs.addEventListener('click', (ev) => {
+        const btn = ev.target.closest('[data-modal-part]');
+        if (!btn) return;
+        state.presetModalBodyPart = btn.dataset.modalPart;
+        renderPresetEditorModal();
+      });
+    }
+
+    if (els.presetModalChips) {
+      els.presetModalChips.addEventListener('click', (ev) => {
+        const removeBtn = ev.target.closest('[data-remove-preset]');
+        if (!removeBtn) return;
+        const targetName = removeBtn.dataset.removePreset;
+        state.exercisePresets = Storage.removePresetExercise(
+          state.exercisePresets,
+          state.presetModalBodyPart,
+          targetName
+        );
+        renderPresetEditorModal();
+        renderExerciseSuggestions();
+        showToast(`「${targetName}」をよく使う種目から削除しました`, false);
+      });
+    }
+
+    if (els.addPresetBtn) {
+      els.addPresetBtn.addEventListener('click', () => {
+        handleAddPreset(els.newPresetInput ? els.newPresetInput.value : '');
+      });
+    }
+
+    if (els.newPresetInput) {
+      els.newPresetInput.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' && !ev.isComposing) {
+          ev.preventDefault();
+          handleAddPreset(els.newPresetInput.value);
+        }
+      });
+    }
+
+    if (els.presetFromHistoryRow) {
+      els.presetFromHistoryRow.addEventListener('click', (ev) => {
+        const btn = ev.target.closest('[data-add-history-preset]');
+        if (!btn) return;
+        handleAddPreset(btn.dataset.addHistoryPreset);
+      });
+    }
+
+    if (els.resetPresetsBtn) {
+      els.resetPresetsBtn.addEventListener('click', () => {
+        state.exercisePresets = Storage.resetBodyPartPresets(
+          state.exercisePresets,
+          state.presetModalBodyPart
+        );
+        renderPresetEditorModal();
+        renderExerciseSuggestions();
+        showToast('この部位のよく使う種目を初期値に戻しました', false);
+      });
+    }
 
     // Exercise / numeric inputs live update
     els.inputExercise.addEventListener('input', () => {
@@ -1064,9 +1344,7 @@
       }
     });
 
-    // Data management & theme toggle
-    els.quickSampleBtn.addEventListener('click', handleLoadSampleData);
-    els.loadSampleBtn.addEventListener('click', handleLoadSampleData);
+    // Theme toggle
     if (els.themeToggleBtn) {
       els.themeToggleBtn.addEventListener('click', () => {
         const next = state.theme === 'dark' ? 'light' : 'dark';
@@ -1081,7 +1359,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `liftlog_${formatLocalDate(new Date())}.json`;
+      a.download = `machomemo_${formatLocalDate(new Date())}.json`;
       a.click();
       URL.revokeObjectURL(url);
       showToast('JSONファイルを書き出しました', false);
@@ -1358,6 +1636,263 @@
     els.appMain.addEventListener('touchend', finishOrCancelHorizontalSwipe, { passive: true });
   }
 
+  function setupTutorial() {
+    if (!els.tutorialOverlay || !els.tutorialSpotlight || !els.tutorialCard) return;
+
+    const TUTORIAL_STEPS = [
+      {
+        tab: 'record',
+        selector: '.form-card',
+        title: 'マチョめもへようこそ！',
+        body: '日々の筋トレを素早く記録し、成長や部位バランスを見える化できます。まずはサンプルデータを使って主な機能をご案内します。',
+        prepare() {
+          state.selectedBodyPart = 'chest';
+          renderBodyPartPills();
+          els.inputExercise.value = 'ベンチプレス';
+          renderExerciseSuggestions();
+          renderPreviousRecordBox();
+          renderLivePreview();
+        },
+      },
+      {
+        tab: 'record',
+        selector: '#presetShortcutsArea',
+        title: 'よく使う種目は自由に編集OK',
+        body: '「編集」ボタンから、よく使う種目の追加・削除を部位ごとにカスタマイズできます。種目が増えすぎず、いつものメニューを1タップで素早く選べます。',
+        prepare() {
+          state.selectedBodyPart = 'chest';
+          renderBodyPartPills();
+          renderExerciseSuggestions();
+        },
+      },
+      {
+        tab: 'record',
+        selector: '#previousRecordInline',
+        title: '前回記録を見ながら即入力',
+        body: '種目を選ぶと前回の重量・回数・セット数が表示されます。「前回値をコピー」や ± ボタンでジムでも数秒で記録できます。',
+        prepare() {
+          if (!els.inputExercise.value.trim()) {
+            els.inputExercise.value = 'ベンチプレス';
+          }
+          renderPreviousRecordBox();
+          renderLivePreview();
+        },
+      },
+      {
+        tab: 'growth',
+        selector: '#view-growth .chart-panel',
+        title: '種目ごとの成長と自己ベストを可視化',
+        body: '推定1RMと総ボリュームの推移をグラフで確認できます。自己ベスト（PR）を更新した日には ★ マークが表示されます。',
+        prepare() {
+          state.selectedExercise = 'ベンチプレス';
+          state.growthMetric = 'oneRM';
+          renderGrowthView();
+        },
+      },
+      {
+        tab: 'balance',
+        selector: '#balanceChartContainer',
+        title: '部位の偏りとアドバイスを把握',
+        body: '直近7日〜全期間の6部位バランスをレーダーや棒グラフで可視化し、不足している部位や偏りに対してアドバイスを表示します。',
+        prepare() {
+          state.balancePeriod = 14;
+          state.balanceChartType = 'radar';
+          renderBalanceView();
+        },
+      },
+      {
+        tab: 'history',
+        selector: '.history-calendar-card',
+        title: 'カレンダーで実施日を一目で確認',
+        body: 'カレンダー上でトレーニングした日と部位カラーを確認でき、日付タップで記録を絞り込めます。準備ができたら始めましょう！',
+        isFinal: true,
+        prepare() {
+          const today = new Date();
+          state.historyCalendarYear = today.getFullYear();
+          state.historyCalendarMonth = today.getMonth();
+          state.historySelectedDate = null;
+          renderHistoryView();
+        },
+      },
+    ];
+
+    let currentStepIndex = 0;
+    let isOpen = false;
+    let rafId = null;
+
+    function getSafeViewportInsets() {
+      const headerEl = document.querySelector('.app-header');
+      const mobileNavEl = document.querySelector('.mobile-bottom-nav');
+      const headerBottom = headerEl ? Math.max(0, Math.ceil(headerEl.getBoundingClientRect().bottom)) : 0;
+      const mobileNavRect = mobileNavEl ? mobileNavEl.getBoundingClientRect() : null;
+      const mobileNavHeight =
+        mobileNavRect && mobileNavRect.height > 0 ? Math.ceil(mobileNavRect.height) : 0;
+      return { headerBottom, mobileNavHeight };
+    }
+
+    function scrollTargetIntoSafeArea(targetEl) {
+      const { headerBottom, mobileNavHeight } = getSafeViewportInsets();
+      const rect = targetEl.getBoundingClientRect();
+      const topPadding = 14;
+      const bottomPadding = 14;
+      const availableHeight = Math.max(120, window.innerHeight - headerBottom - mobileNavHeight - topPadding - bottomPadding);
+
+      let targetScrollY;
+      if (rect.height >= availableHeight) {
+        targetScrollY = window.scrollY + rect.top - headerBottom - topPadding;
+      } else {
+        const safeCenterY = headerBottom + topPadding + availableHeight / 2;
+        const rectCenterY = rect.top + rect.height / 2;
+        targetScrollY = window.scrollY + (rectCenterY - safeCenterY);
+        const minVisibleTopY = window.scrollY + rect.top - headerBottom - topPadding;
+        targetScrollY = Math.min(targetScrollY, minVisibleTopY);
+      }
+
+      window.scrollTo({ top: Math.max(0, Math.round(targetScrollY)), behavior: 'instant' });
+    }
+
+    function positionOverlay() {
+      if (!isOpen) return;
+      const step = TUTORIAL_STEPS[currentStepIndex];
+      const targetEl = document.querySelector(step.selector);
+      if (!targetEl) return;
+
+      const { headerBottom, mobileNavHeight } = getSafeViewportInsets();
+      const targetRect = targetEl.getBoundingClientRect();
+      const cardRect = els.tutorialCard.getBoundingClientRect();
+      const pos = computeTutorialPopoverPosition({
+        targetRect,
+        cardWidth: cardRect.width || 340,
+        cardHeight: cardRect.height || 220,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        safeTop: headerBottom + 8,
+        safeBottom: mobileNavHeight + 8,
+      });
+
+      els.tutorialSpotlight.style.top = `${pos.spotlight.top}px`;
+      els.tutorialSpotlight.style.left = `${pos.spotlight.left}px`;
+      els.tutorialSpotlight.style.width = `${pos.spotlight.width}px`;
+      els.tutorialSpotlight.style.height = `${pos.spotlight.height}px`;
+      els.tutorialCard.style.top = `${pos.top}px`;
+      els.tutorialCard.style.left = `${pos.left}px`;
+    }
+
+    function schedulePosition() {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        positionOverlay();
+      });
+    }
+
+    function handleKeydown(ev) {
+      if (!isOpen) return;
+      if (ev.key === 'Escape') {
+        ev.preventDefault();
+        completeTutorial();
+      } else if (ev.key === 'ArrowRight') {
+        ev.preventDefault();
+        if (currentStepIndex < TUTORIAL_STEPS.length - 1) {
+          showStep(currentStepIndex + 1);
+        } else {
+          completeTutorial();
+        }
+      } else if (ev.key === 'ArrowLeft') {
+        ev.preventDefault();
+        if (currentStepIndex > 0) {
+          showStep(currentStepIndex - 1);
+        }
+      }
+    }
+
+    function showStep(index) {
+      currentStepIndex = Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, index));
+      const step = TUTORIAL_STEPS[currentStepIndex];
+
+      setActiveTab(step.tab, { skipAnimation: true });
+      if (typeof step.prepare === 'function') {
+        step.prepare();
+      }
+
+      els.tutorialStepBadge.textContent = `${currentStepIndex + 1} / ${TUTORIAL_STEPS.length}`;
+      els.tutorialDots.innerHTML = TUTORIAL_STEPS.map(
+        (_, i) => `<span class="tutorial-dot ${i === currentStepIndex ? 'is-active' : ''}"></span>`
+      ).join('');
+      els.tutorialTitle.textContent = step.title;
+      els.tutorialBody.textContent = step.body;
+      els.tutorialNote.hidden = !step.isFinal;
+      els.tutorialPrevBtn.hidden = currentStepIndex === 0;
+      els.tutorialNextBtn.textContent = step.isFinal ? 'はじめる' : '次へ';
+
+      const targetEl = document.querySelector(step.selector);
+      if (targetEl) {
+        scrollTargetIntoSafeArea(targetEl);
+      }
+      els.tutorialOverlay.hidden = false;
+      positionOverlay();
+      schedulePosition();
+    }
+
+    function completeTutorial() {
+      if (!isOpen) return;
+      isOpen = false;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      els.tutorialOverlay.hidden = true;
+      window.removeEventListener('resize', schedulePosition);
+      window.removeEventListener('scroll', schedulePosition, true);
+      window.removeEventListener('keydown', handleKeydown);
+
+      const result = Storage.finishTutorialAndClearSample();
+      state.workouts = result.workouts;
+      state.selectedExercise = '';
+      state.historySelectedDate = null;
+      els.inputExercise.value = '';
+      resetFormToCreateMode(false);
+      setActiveTab('record', { skipAnimation: true });
+      refreshAllViews();
+      window.scrollTo({ top: 0, behavior: 'instant' });
+
+      if (result.clearedSample) {
+        showToast('チュートリアル完了！サンプルデータを消去しました。最初の記録をつけてみましょう。', false);
+      }
+    }
+
+    function startTutorial() {
+      if (isOpen) return;
+      isOpen = true;
+      window.addEventListener('resize', schedulePosition);
+      window.addEventListener('scroll', schedulePosition, true);
+      window.addEventListener('keydown', handleKeydown);
+      showStep(0);
+    }
+
+    els.tutorialNextBtn.addEventListener('click', () => {
+      if (currentStepIndex < TUTORIAL_STEPS.length - 1) {
+        showStep(currentStepIndex + 1);
+      } else {
+        completeTutorial();
+      }
+    });
+
+    els.tutorialPrevBtn.addEventListener('click', () => {
+      if (currentStepIndex > 0) {
+        showStep(currentStepIndex - 1);
+      }
+    });
+
+    els.tutorialSkipBtn.addEventListener('click', completeTutorial);
+
+    if (Storage.shouldShowTutorial()) {
+      startTutorial();
+    }
+  }
+
   function init() {
     applyTheme(state.theme);
     els.inputDate.value = formatLocalDate(new Date());
@@ -1368,6 +1903,7 @@
     bindEvents();
     bindSwipeNavigation();
     refreshAllViews();
+    setupTutorial();
   }
 
   init();

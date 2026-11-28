@@ -15,6 +15,7 @@ const {
   buildCalendarMonthData,
   evaluateSwipeNavigation,
   computeSwipeDragState,
+  computeTutorialPopoverPosition,
 } = require('../src/calculations.js');
 const { createSampleWorkouts } = require('../src/sampleData.js');
 
@@ -350,4 +351,75 @@ test('computeSwipeDragState computes finger-following offsets, neighbor tab, cla
   });
   assert.equal(rightEdgeMax.neighborTab, null);
   assert.equal(rightEdgeMax.currentOffsetPx, -48);
+});
+
+test('computeTutorialPopoverPosition places popover below or above spotlight and clamps within viewport', () => {
+  // Target near top -> places below spotlight
+  const belowPos = computeTutorialPopoverPosition({
+    targetRect: { top: 80, left: 40, right: 340, bottom: 220 },
+    cardWidth: 320,
+    cardHeight: 190,
+    viewportWidth: 1280,
+    viewportHeight: 800,
+  });
+  assert.equal(belowPos.top, 226 + 14); // spotlight bottom (220 + 6) + gap (14)
+  assert.ok(belowPos.left >= 12 && belowPos.left + 320 <= 1280 - 12);
+
+  // Target near bottom -> places above spotlight
+  const abovePos = computeTutorialPopoverPosition({
+    targetRect: { top: 580, left: 40, right: 340, bottom: 760 },
+    cardWidth: 320,
+    cardHeight: 190,
+    viewportWidth: 1280,
+    viewportHeight: 800,
+  });
+  assert.equal(abovePos.top, 574 - 14 - 190); // spotlight top (580 - 6) - gap - cardHeight
+
+  // Narrow mobile viewport clamps horizontally inside margins (390 - 360 - 12 = 18)
+  const mobilePos = computeTutorialPopoverPosition({
+    targetRect: { top: 90, left: 260, right: 380, bottom: 260 },
+    cardWidth: 360,
+    cardHeight: 200,
+    viewportWidth: 390,
+    viewportHeight: 844,
+  });
+  assert.equal(mobilePos.left, 18);
+  assert.ok(mobilePos.top + 200 <= 844 - 12);
+
+  // Left-edge target clamps to left margin 12
+  const leftEdgePos = computeTutorialPopoverPosition({
+    targetRect: { top: 90, left: 10, right: 80, bottom: 200 },
+    cardWidth: 360,
+    cardHeight: 200,
+    viewportWidth: 390,
+    viewportHeight: 844,
+  });
+  assert.equal(leftEdgePos.left, 12);
+
+  // Sticky header safeTop & mobile nav safeBottom prevent spotlight from enclosing header or bottom nav
+  const headerSafePos = computeTutorialPopoverPosition({
+    targetRect: { top: 0, left: 40, right: 680, bottom: 720 },
+    cardWidth: 360,
+    cardHeight: 210,
+    viewportWidth: 1280,
+    viewportHeight: 800,
+    safeTop: 72,
+    safeBottom: 12,
+  });
+  assert.ok(headerSafePos.spotlight.top >= 72);
+  assert.ok(headerSafePos.top >= 72);
+  assert.ok(headerSafePos.top + 210 <= 800 - 12);
+
+  const mobileSafePos = computeTutorialPopoverPosition({
+    targetRect: { top: 65, left: 12, right: 378, bottom: 820 },
+    cardWidth: 360,
+    cardHeight: 210,
+    viewportWidth: 390,
+    viewportHeight: 844,
+    safeTop: 65,
+    safeBottom: 68,
+  });
+  assert.ok(mobileSafePos.spotlight.top >= 65);
+  assert.ok(mobileSafePos.spotlight.top + mobileSafePos.spotlight.height <= 844 - 68);
+  assert.ok(mobileSafePos.top + 210 <= 844 - 68);
 });

@@ -56,6 +56,7 @@
     workouts: 'liftlog_workouts_v1',
     meta: 'liftlog_meta_v1',
     theme: 'liftlog_theme_v1',
+    presets: 'liftlog_presets_v1',
   };
 
   const api = {

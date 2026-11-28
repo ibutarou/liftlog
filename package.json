@@ -1,5 +1,5 @@
 {
-  "name": "liftlog-training-app",
+  "name": "machomemo-training-app",
   "version": "1.0.0",
   "description": "シンプルな筋トレ管理Webアプリ（日々の記録・成長可視化・部位バランス分析）",
   "private": true,

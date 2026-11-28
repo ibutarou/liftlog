@@ -625,6 +625,64 @@
     };
   }
 
+  /**
+   * Computes viewport-clamped spotlight and popover coordinates for the onboarding walkthrough.
+   */
+  function computeTutorialPopoverPosition({
+    targetRect,
+    cardWidth,
+    cardHeight,
+    viewportWidth,
+    viewportHeight,
+    margin = 12,
+    gap = 14,
+    safeTop = 4,
+    safeBottom = 4,
+  }) {
+    const vw = Math.max(200, Number(viewportWidth) || 390);
+    const vh = Math.max(200, Number(viewportHeight) || 844);
+    const cw = Math.min(vw - margin * 2, Math.max(180, Number(cardWidth) || 320));
+    const ch = Math.max(120, Number(cardHeight) || 200);
+
+    const minSpotTop = Math.max(4, Math.round(safeTop));
+    const maxSpotBottom = Math.max(minSpotTop + 8, Math.round(vh - Math.max(4, safeBottom)));
+
+    const pad = 6;
+    const rawLeft = (targetRect ? targetRect.left : vw / 2) - pad;
+    const rawTop = (targetRect ? targetRect.top : vh / 2) - pad;
+    const rawRight = (targetRect ? targetRect.right : vw / 2) + pad;
+    const rawBottom = (targetRect ? targetRect.bottom : vh / 2) + pad;
+
+    const spotLeft = Math.max(4, Math.min(vw - 8, Math.round(rawLeft)));
+    const spotTop = Math.max(minSpotTop, Math.min(maxSpotBottom - 8, Math.round(rawTop)));
+    const spotRight = Math.max(spotLeft + 8, Math.min(vw - 4, Math.round(rawRight)));
+    const spotBottom = Math.max(spotTop + 8, Math.min(maxSpotBottom, Math.round(rawBottom)));
+    const spotlight = {
+      top: spotTop,
+      left: spotLeft,
+      width: spotRight - spotLeft,
+      height: spotBottom - spotTop,
+    };
+
+    const targetCenterX = spotLeft + spotlight.width / 2;
+    const maxLeft = Math.max(margin, vw - cw - margin);
+    const left = Math.round(Math.max(margin, Math.min(maxLeft, targetCenterX - cw / 2)));
+
+    const minTop = Math.max(margin, minSpotTop);
+    const maxBottom = Math.max(minTop + ch, vh - Math.max(margin, Math.round(safeBottom)));
+
+    let top;
+    if (spotBottom + gap + ch <= maxBottom) {
+      top = Math.round(spotBottom + gap);
+    } else if (spotTop - gap - ch >= minTop) {
+      top = Math.round(spotTop - gap - ch);
+    } else {
+      top = Math.round(Math.max(minTop, maxBottom - ch));
+    }
+
+    return { top, left, spotlight };
+  }
+
   const api = {
     formatLocalDate,
     parseLocalDate,
@@ -645,6 +703,7 @@
     buildCalendarMonthData,
     evaluateSwipeNavigation,
     computeSwipeDragState,
+    computeTutorialPopoverPosition,
   };
 
   if (typeof module !== 'undefined' && module.exports) {

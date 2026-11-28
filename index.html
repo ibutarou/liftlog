@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>LiftLog — シンプル筋トレ管理</title>
+  <title>マチョめも — シンプル筋トレ管理</title>
   <script>
     (function () {
       try {
@@ -21,9 +21,9 @@
   <header class="app-header">
     <div class="header-inner">
       <div class="brand">
-        <span class="brand-logo" aria-hidden="true">LL</span>
+        <span class="brand-logo" aria-hidden="true">💪</span>
         <div>
-          <span class="brand-name">LiftLog</span>
+          <span class="brand-name">マチョめも</span>
           <span class="brand-sub">筋トレ記録・成長・部位バランス</span>
         </div>
       </div>
@@ -36,8 +36,7 @@
       </nav>
 
       <div class="header-actions">
-        <span id="sampleDataBadge" class="sample-badge" hidden>サンプル表示中</span>
-        <button type="button" id="quickSampleBtn" class="btn-ghost-sm" title="サンプルデータを読み込む">サンプル読込</button>
+        <span id="sampleDataBadge" class="sample-badge" hidden>チュートリアル用サンプル</span>
         <button type="button" id="themeToggleBtn" class="theme-toggle-btn" aria-pressed="false" aria-label="ダークテーマに切り替え" title="テーマを切り替え">
           <span class="theme-toggle-icon" aria-hidden="true">🌙</span>
           <span class="theme-toggle-label">ダーク</span>
@@ -52,19 +51,16 @@
     <section id="view-record" class="view-section is-active" aria-labelledby="record-heading">
       <div class="record-layout">
         <div class="card form-card">
-          <div class="card-header-row">
-            <div>
-              <h1 id="record-heading" class="card-title">ワークアウトを記録</h1>
-              <p class="card-subtitle">部位と種目を選んで素早く入力。前回記録と比較しながら記録できます。</p>
-            </div>
-            <button type="button" id="cancelEditBtn" class="btn-secondary-sm" hidden>編集をキャンセル</button>
-          </div>
-
           <form id="workoutForm" novalidate>
-            <div class="form-row-top">
-              <div class="field-group">
-                <label for="inputDate" class="field-label">日付</label>
-                <input id="inputDate" name="date" type="date" class="field-input" required />
+            <div class="form-card-header">
+              <div>
+                <h1 id="record-heading" class="card-title">ワークアウトを記録</h1>
+                <p class="card-subtitle">部位と種目を選んで素早く入力</p>
+              </div>
+              <div class="form-header-controls">
+                <label for="inputDate" class="sr-only">日付</label>
+                <input id="inputDate" name="date" type="date" class="header-date-input" required />
+                <button type="button" id="cancelEditBtn" class="btn-secondary-sm" hidden>編集をキャンセル</button>
               </div>
             </div>
 
@@ -73,7 +69,7 @@
               <div id="bodyPartSelector" class="body-part-pills" role="radiogroup" aria-label="部位を選択"></div>
             </div>
 
-            <div class="field-group">
+            <div class="field-group exercise-field-group">
               <label for="inputExercise" class="field-label">種目名</label>
               <input
                 id="inputExercise"
@@ -86,7 +82,13 @@
                 required
               />
               <datalist id="exerciseSuggestions"></datalist>
-              <div id="presetExerciseChips" class="preset-chips" aria-label="定番種目ショートカット"></div>
+              <div id="presetShortcutsArea" class="preset-shortcuts-area">
+                <div class="preset-chips-header">
+                  <span id="presetChipsLabel" class="preset-chips-label">よく使う種目</span>
+                  <button type="button" id="togglePresetEditBtn" class="preset-edit-toggle" aria-expanded="false" aria-controls="presetEditorModal">編集</button>
+                </div>
+                <div id="presetExerciseChips" class="preset-chips" aria-label="定番種目ショートカット"></div>
+              </div>
             </div>
 
             <!-- モバイルでも入力直下に前回記録を表示 -->
@@ -183,7 +185,9 @@
           </div>
 
           <div class="card quick-insight-card">
-            <h2 class="card-title-sm">直近のサマリー（7日間）</h2>
+            <div class="card-header-row compact-header">
+              <h2 class="card-title-sm">直近のサマリー（7日間）</h2>
+            </div>
             <div id="quickSummaryGrid" class="quick-summary-grid"></div>
           </div>
         </aside>
@@ -287,7 +291,6 @@
             <p class="card-subtitle">カレンダーで実施日を確認したり、過去の記録の検索・編集・削除を行えます。</p>
           </div>
           <div class="data-actions-row">
-            <button type="button" id="loadSampleBtn" class="btn-secondary-sm">サンプルデータを投入</button>
             <button type="button" id="exportJsonBtn" class="btn-secondary-sm">JSON出力</button>
             <button type="button" id="clearAllBtn" class="btn-danger-sm">全データを削除</button>
           </div>
@@ -366,6 +369,71 @@
       <span>履歴</span>
     </button>
   </nav>
+
+  <!-- よく使う種目 編集モーダル -->
+  <div id="presetEditorModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="presetModalTitle" hidden>
+    <div class="modal-backdrop" data-close-preset-modal></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h2 id="presetModalTitle" class="modal-title">よく使う種目を編集</h2>
+          <p class="modal-subtitle">種目入力欄の下に表示されるショートカットを部位ごとに管理できます。</p>
+        </div>
+        <button type="button" id="closePresetModalBtn" class="modal-close-btn" aria-label="閉じる">×</button>
+      </div>
+
+      <div id="presetModalPartTabs" class="modal-part-tabs" role="tablist" aria-label="編集する部位を選択"></div>
+
+      <div class="modal-section">
+        <div class="modal-section-head">
+          <span id="presetModalPartLabel" class="modal-section-label">表示中の種目</span>
+          <span id="presetModalCount" class="muted-badge">0 件</span>
+        </div>
+        <div id="presetModalChips" class="preset-chips modal-chips-box"></div>
+      </div>
+
+      <div class="modal-section">
+        <label for="newPresetInput" class="modal-section-label">新しい種目を追加</label>
+        <div class="preset-add-row">
+          <input
+            id="newPresetInput"
+            type="text"
+            class="field-input preset-add-input"
+            maxlength="40"
+            placeholder="種目を追加（例：ケーブルクロス）"
+            autocomplete="off"
+          />
+          <button type="button" id="addPresetBtn" class="btn-primary-sm">追加</button>
+        </div>
+      </div>
+
+      <div id="presetFromHistoryRow" class="preset-from-history" hidden></div>
+
+      <div class="modal-footer">
+        <button type="button" id="resetPresetsBtn" class="btn-ghost-sm">この部位を初期値に戻す</button>
+        <button type="button" id="donePresetEditBtn" class="btn-primary-sm">完了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 初回チュートリアル（コーチマーク） -->
+  <div id="tutorialOverlay" class="tutorial-overlay" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle" hidden>
+    <div id="tutorialSpotlight" class="tutorial-spotlight" aria-hidden="true"></div>
+    <div id="tutorialCard" class="tutorial-card">
+      <div class="tutorial-card-top">
+        <span id="tutorialStepBadge" class="tutorial-step-badge">1 / 6</span>
+        <div id="tutorialDots" class="tutorial-dots" aria-hidden="true"></div>
+        <button type="button" id="tutorialSkipBtn" class="tutorial-skip-btn">スキップ</button>
+      </div>
+      <h2 id="tutorialTitle" class="tutorial-title"></h2>
+      <p id="tutorialBody" class="tutorial-body"></p>
+      <p id="tutorialNote" class="tutorial-note" hidden>※ 終了するとチュートリアル用のサンプルデータは自動で削除されます。</p>
+      <div class="tutorial-actions">
+        <button type="button" id="tutorialPrevBtn" class="btn-secondary-sm">戻る</button>
+        <button type="button" id="tutorialNextBtn" class="btn-primary-sm">次へ</button>
+      </div>
+    </div>
+  </div>
 
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 

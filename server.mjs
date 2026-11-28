@@ -134,7 +134,7 @@ if (isDirectEntry) {
   const HOST = process.env.HOST || '127.0.0.1';
   const PORT = Number(process.env.PORT) || 4173;
   server.listen(PORT, HOST, () => {
-    console.log(`LiftLog server running at http://${HOST}:${PORT}`);
+    console.log(`マチョめも server running at http://${HOST}:${PORT}`);
   });
 }
 
