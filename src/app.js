@@ -210,15 +210,18 @@
     state.activeTab = tab;
 
     const skipAnimation = Boolean(options && options.skipAnimation);
+    const skipRender = Boolean(options && options.skipRender);
     Object.entries(els.views).forEach(([key, section]) => {
       const active = key === tab;
       section.hidden = !active;
       section.classList.toggle('is-active', active);
-      section.classList.toggle('no-fade', active && skipAnimation);
+      section.classList.toggle('is-fade-in', active && !skipAnimation);
     });
 
     updateTabNavActive(tab);
-    renderTabContent(tab);
+    if (!skipRender) {
+      renderTabContent(tab);
+    }
   }
 
   function updateSampleBadge() {
@@ -1461,6 +1464,7 @@
       Object.entries(els.views).forEach(([key, section]) => {
         section.classList.remove('is-swipe-dragging', 'is-swipe-animating', 'is-swipe-neighbor');
         section.style.transform = '';
+        section.style.top = '';
         section.hidden = key !== state.activeTab;
       });
     }
@@ -1471,12 +1475,21 @@
       if (!el) return;
       el.classList.remove('is-swipe-dragging', 'is-swipe-animating', 'is-swipe-neighbor');
       el.style.transform = '';
+      el.style.top = '';
       if (shouldHide) {
         el.hidden = true;
       }
     }
 
     function animateSwipeFinish(currentEl, neighborEl, targets, onDone) {
+      if (
+        typeof targets.currentStartPx === 'number' &&
+        Math.abs(targets.currentEndPx - targets.currentStartPx) < 1
+      ) {
+        onDone();
+        return;
+      }
+
       currentEl.classList.remove('is-swipe-dragging');
       currentEl.classList.add('is-swipe-animating');
       if (neighborEl) {
@@ -1493,7 +1506,7 @@
       }
 
       let finished = false;
-      const timerId = setTimeout(finish, 280);
+      const timerId = setTimeout(finish, 230);
 
       function cleanupListeners() {
         clearTimeout(timerId);
@@ -1541,9 +1554,13 @@
               durationMs,
               currentTab: state.activeTab,
               tabOrder: TAB_ORDER,
-              minDistancePx: 70,
-              horizontalRatio: 2,
-              maxDurationMs: 1000,
+              stageWidth: swipe.stageWidth,
+              lockedHorizontal: true,
+              minDistancePx: 42,
+              flickDistancePx: 28,
+              flickVelocityPxPerMs: 0.28,
+              horizontalRatio: 1.2,
+              maxDurationMs: 1200,
             })
           : null;
 
@@ -1553,13 +1570,17 @@
         animateSwipeFinish(
           currentEl,
           neighborEl,
-          { currentEndPx, neighborEndPx: 0 },
+          {
+            currentStartPx: swipe.lastCurrentOffsetPx,
+            currentEndPx,
+            neighborEndPx: 0,
+          },
           () => {
             clearSectionSwipe(currentEl, true);
             clearSectionSwipe(neighborEl, false);
-            setActiveTab(nextTab, { skipAnimation: true, fromSwipeCleanup: true });
+            setActiveTab(nextTab, { skipAnimation: true, skipRender: true, fromSwipeCleanup: true });
             if (window.scrollY > 0) {
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+              window.scrollTo(0, 0);
             }
           }
         );
@@ -1569,6 +1590,7 @@
           currentEl,
           neighborEl,
           {
+            currentStartPx: swipe.lastCurrentOffsetPx,
             currentEndPx: 0,
             neighborEndPx: neighborEl ? neighborBackPx : null,
           },
@@ -1591,6 +1613,7 @@
           return;
         }
         const touch = ev.touches[0];
+        const stageWidth = els.swipeStage.clientWidth || window.innerWidth;
         activeSwipe = {
           startX: touch.clientX,
           startY: touch.clientY,
@@ -1600,7 +1623,10 @@
           neighborTab: null,
           lastDx: 0,
           lastDy: 0,
-          stride: (els.swipeStage.clientWidth || window.innerWidth) + 16,
+          lastCurrentOffsetPx: 0,
+          scrollTopPx: Math.max(0, Math.round(window.scrollY || 0)),
+          stageWidth,
+          stride: stageWidth + 16,
         };
       },
       { passive: true }
@@ -1624,10 +1650,14 @@
         if (activeSwipe.mode === 'vertical') return;
 
         if (activeSwipe.mode === 'pending') {
+          if (!ev.cancelable) {
+            activeSwipe.mode = 'vertical';
+            return;
+          }
           const absX = Math.abs(dx);
           const absY = Math.abs(dy);
-          if (Math.max(absX, absY) < 12) return;
-          if (absX >= absY * 1.6) {
+          if (Math.max(absX, absY) < 7) return;
+          if (absX >= absY * 1.15) {
             activeSwipe.mode = 'horizontal';
           } else {
             activeSwipe.mode = 'vertical';
@@ -1644,11 +1674,12 @@
           dy,
           currentTab: state.activeTab,
           tabOrder: TAB_ORDER,
-          stageWidth: els.swipeStage.clientWidth || window.innerWidth,
+          stageWidth: activeSwipe.stageWidth,
         });
 
         activeSwipe.direction = drag.direction;
         activeSwipe.stride = drag.stride;
+        activeSwipe.lastCurrentOffsetPx = drag.currentOffsetPx;
 
         if (drag.neighborTab !== activeSwipe.neighborTab) {
           if (activeSwipe.neighborTab) {
@@ -1656,17 +1687,18 @@
           }
           activeSwipe.neighborTab = drag.neighborTab;
           if (drag.neighborTab) {
-            renderTabContent(drag.neighborTab);
             const nextEl = els.views[drag.neighborTab];
             nextEl.hidden = false;
             nextEl.classList.add('is-swipe-neighbor', 'is-swipe-dragging');
-            nextEl.classList.remove('no-fade');
+            nextEl.classList.remove('is-fade-in');
+            nextEl.style.top = `${activeSwipe.scrollTopPx}px`;
+            renderTabContent(drag.neighborTab);
           }
         }
 
         const currentEl = els.views[state.activeTab];
+        currentEl.classList.remove('is-fade-in');
         currentEl.classList.add('is-swipe-dragging');
-        currentEl.classList.remove('no-fade');
         currentEl.style.transform = `translate3d(${drag.currentOffsetPx}px, 0, 0)`;
 
         if (drag.neighborTab && drag.neighborOffsetPx !== null) {

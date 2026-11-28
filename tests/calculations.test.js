@@ -234,43 +234,78 @@ test('buildCalendarMonthData builds Sun-Sat grid, deduplicates bodyParts in cano
   assert.equal(dec01.count, 1);
 });
 
-test('evaluateSwipeNavigation enforces strict 70px threshold, 2x horizontal dominance, and tab boundaries', () => {
+test('evaluateSwipeNavigation supports relaxed distance, fast flicks, axis-lock, deliberate drags, and tab boundaries', () => {
   const order = ['record', 'growth', 'balance', 'history'];
 
-  // Below 70px threshold -> ignored
+  // Short slow drags below 42px -> ignored
   assert.equal(
-    evaluateSwipeNavigation({ dx: -69, dy: 0, durationMs: 200, currentTab: 'record', tabOrder: order }),
+    evaluateSwipeNavigation({ dx: -25, dy: 0, durationMs: 200, currentTab: 'record', tabOrder: order }),
     null
   );
   assert.equal(
-    evaluateSwipeNavigation({ dx: 69, dy: 5, durationMs: 200, currentTab: 'growth', tabOrder: order }),
-    null
-  );
-
-  // Diagonal / vertical-heavy gesture -> ignored (|dx| < |dy| * 2)
-  assert.equal(
-    evaluateSwipeNavigation({ dx: -90, dy: 50, durationMs: 200, currentTab: 'record', tabOrder: order }),
-    null
-  );
-  assert.equal(
-    evaluateSwipeNavigation({ dx: -80, dy: -41, durationMs: 200, currentTab: 'record', tabOrder: order }),
+    evaluateSwipeNavigation({ dx: -38, dy: 0, durationMs: 300, currentTab: 'growth', tabOrder: order }),
     null
   );
 
-  // Clean horizontal left swipe >= 70px -> next tab
+  // Fast short flick (>= 28px and >= 0.28 px/ms) -> switches tab
   assert.equal(
-    evaluateSwipeNavigation({ dx: -70, dy: 15, durationMs: 200, currentTab: 'record', tabOrder: order }),
+    evaluateSwipeNavigation({ dx: -30, dy: 8, durationMs: 90, currentTab: 'record', tabOrder: order }),
+    'growth'
+  );
+
+  // Relaxed distance swipe (>= 42px, ratio >= 1.2) -> switches tab
+  assert.equal(
+    evaluateSwipeNavigation({ dx: -45, dy: 20, durationMs: 220, currentTab: 'record', tabOrder: order }),
     'growth'
   );
   assert.equal(
-    evaluateSwipeNavigation({ dx: -110, dy: 50, durationMs: 250, currentTab: 'growth', tabOrder: order }),
-    'balance'
+    evaluateSwipeNavigation({ dx: 45, dy: -15, durationMs: 220, currentTab: 'growth', tabOrder: order }),
+    'record'
   );
 
-  // Clean horizontal right swipe >= 70px -> previous tab
+  // Vertical-heavy diagonal without horizontal lock -> ignored
   assert.equal(
-    evaluateSwipeNavigation({ dx: 85, dy: -20, durationMs: 220, currentTab: 'balance', tabOrder: order }),
+    evaluateSwipeNavigation({ dx: -60, dy: 55, durationMs: 200, currentTab: 'record', tabOrder: order }),
+    null
+  );
+
+  // Vertical drift after horizontal axis-lock -> allowed
+  assert.equal(
+    evaluateSwipeNavigation({
+      dx: -60,
+      dy: 55,
+      durationMs: 200,
+      currentTab: 'record',
+      tabOrder: order,
+      lockedHorizontal: true,
+    }),
     'growth'
+  );
+
+  // Slow deliberate drag past commitDistance -> switches even past maxDurationMs
+  assert.equal(
+    evaluateSwipeNavigation({
+      dx: -120,
+      dy: 0,
+      durationMs: 1500,
+      currentTab: 'record',
+      tabOrder: order,
+      stageWidth: 366,
+    }),
+    'growth'
+  );
+
+  // Slow short drag exceeding maxDurationMs -> ignored
+  assert.equal(
+    evaluateSwipeNavigation({
+      dx: -50,
+      dy: 0,
+      durationMs: 1500,
+      currentTab: 'record',
+      tabOrder: order,
+      stageWidth: 366,
+    }),
+    null
   );
 
   // Boundary tabs return null
@@ -280,12 +315,6 @@ test('evaluateSwipeNavigation enforces strict 70px threshold, 2x horizontal domi
   );
   assert.equal(
     evaluateSwipeNavigation({ dx: -120, dy: 0, durationMs: 200, currentTab: 'history', tabOrder: order }),
-    null
-  );
-
-  // Too slow gesture -> ignored
-  assert.equal(
-    evaluateSwipeNavigation({ dx: -120, dy: 0, durationMs: 1200, currentTab: 'record', tabOrder: order }),
     null
   );
 });

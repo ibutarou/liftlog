@@ -532,7 +532,7 @@
 
   /**
    * Evaluates whether a touch gesture qualifies as a horizontal tab swipe.
-   * Requires |dx| >= minDistancePx (default 70) and |dx| >= |dy| * horizontalRatio (default 2.0).
+   * Supports shorter relaxed swipes, fast flicks, and deliberate drags past commit distance.
    */
   function evaluateSwipeNavigation({
     dx,
@@ -540,9 +540,13 @@
     durationMs,
     currentTab,
     tabOrder,
-    minDistancePx = 70,
-    horizontalRatio = 2,
-    maxDurationMs = 1000,
+    stageWidth = 0,
+    lockedHorizontal = false,
+    minDistancePx = 42,
+    flickDistancePx = 28,
+    flickVelocityPxPerMs = 0.28,
+    horizontalRatio = 1.2,
+    maxDurationMs = 1200,
   }) {
     const order = Array.isArray(tabOrder) && tabOrder.length > 0
       ? tabOrder
@@ -551,17 +555,33 @@
     if (currentIndex === -1) return null;
 
     if (!Number.isFinite(dx) || !Number.isFinite(dy)) return null;
-    if (durationMs !== undefined && durationMs !== null) {
-      if (!Number.isFinite(durationMs) || durationMs < 0 || durationMs > maxDurationMs) {
-        return null;
-      }
+    const hasDuration = durationMs !== undefined && durationMs !== null;
+    if (hasDuration && (!Number.isFinite(durationMs) || durationMs < 0)) {
+      return null;
     }
 
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
 
-    if (absX < minDistancePx) return null;
-    if (absX < absY * horizontalRatio) return null;
+    if (!lockedHorizontal && absX < absY * horizontalRatio) return null;
+
+    const commitDistancePx =
+      stageWidth > 0
+        ? Math.max(minDistancePx * 1.8, Math.round(stageWidth * 0.28))
+        : Math.max(minDistancePx * 1.8, 100);
+
+    const isDeliberateDrag = absX >= commitDistancePx;
+    const isDistanceSwipe = absX >= minDistancePx && (!hasDuration || durationMs <= maxDurationMs);
+    const isFastFlick =
+      hasDuration &&
+      durationMs > 0 &&
+      durationMs <= maxDurationMs &&
+      absX >= flickDistancePx &&
+      absX / durationMs >= flickVelocityPxPerMs;
+
+    if (!isDeliberateDrag && !isDistanceSwipe && !isFastFlick) {
+      return null;
+    }
 
     // Swiping left (dx < 0) moves to next tab; swiping right (dx > 0) moves to previous tab
     const nextIndex = dx < 0 ? currentIndex + 1 : currentIndex - 1;
